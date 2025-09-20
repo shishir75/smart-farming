@@ -450,6 +450,23 @@ function calculateDiscountedPayback(benefits, costs, discountRatePct) {
 
 
 
+  // Attach event listeners after the page loads
+  document.addEventListener("DOMContentLoaded", () => {
+    document.getElementById("calculateBtn")
+      .addEventListener("click", calculateAll);
+
+    document.getElementById("generateReportBtn")
+      .addEventListener("click", generateAndShowReport);
+
+    document.getElementById("formulasBtn")
+      .addEventListener("click", () => {
+        window.open("docs.html", "_blank");
+      });
+  });
+
+
+
+
 
 /********************
  * Chart rendering (starts at Year 1; Year 0 hidden visually)
