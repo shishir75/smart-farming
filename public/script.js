@@ -770,7 +770,14 @@ async function fetchNarrativesEasyEnglish(M, chartPNG) {
     };
 
     // Call your backend (no API key here!)
-    const res = await fetch("http://localhost:3000/api/openai/chat", {
+
+    const API_BASE = window.location.hostname.includes("localhost")
+      ? "http://localhost:3000"
+      : "https://smart-farming-mkqd.onrender.com";
+
+
+
+    const res = await fetch(`${API_BASE}/api/openai/chat`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body)
