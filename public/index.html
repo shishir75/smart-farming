@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Smart Farming Investment Calculator with PDF Download</title>
+<link rel="stylesheet" href="styles.css" />
+
+<!-- PDF generation libs -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/pdfmake.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/vfs_fonts.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/html-to-pdfmake/browser.js"></script>
+</head>
+<body>
+  <div id="pageWrapper">
+    <h1>Smart Farming Investment Calculator</h1>
+
+    <form id="investmentForm">
+
+      <div class="input-row">
+        <div class="input-group">
+          <label for="upfrontInvestment">Initial IoT Investment Cost</label>
+          <input type="number" id="upfrontInvestment" min="0" step="any" required />
+        </div>
+
+        <div class="input-group">
+          <label for="projectLifetime">Project Lifetime (years)</label>
+          <input type="number" id="projectLifetime" min="1" step="1" required />
+        </div>
+
+        <div class="input-group">
+          <label for="discountRate">Discount Rate (%)</label>
+          <input type="number" id="discountRate" min="0" step="any" required />
+        </div>
+
+        <!-- New Currency Dropdown -->
+        <div class="input-group">
+          <label for="currencySelect">Select Currency</label>
+          <select id="currencySelect" required></select>
+        </div>
+
+
+      </div>
+
+      
+      
+
+      <div id="annualCashFlowsSection">
+        <label>Enter detailed Benefits and Costs for each year (Year 1 to Project Lifetime):</label>
+        <div class="yearly-inputs" id="yearlyInputs"></div>
+        <div class="totals">
+          Total Benefits (Cash Inflows): <span id="totalBenefits">0</span><br/>
+          Total Costs (Cash Outflows): <span id="totalCosts">0</span>
+        </div>
+      </div>
+
+      <button type="button" onclick="calculateAll()">Calculate</button>
+      <button id="generateReportBtn" onclick="generateAndShowReport()">Generate Report</button>
+      
+      <button onclick="window.open('docs.html','_blank')" class="btn-secondary">
+        Formulas &amp; AI Prompt
+      </button>
+
+      <div id="loadingMessage" style="display:none; color:blue; font-weight:bold; margin:10px 0;">
+        Generating report...
+      </div>
+
+    </form>
+
+    <div class="results" id="results" style="display:none;">
+      <div class="card">
+        <div class="card-title">ROI</div>
+        <div class="card-value" id="roiResult"></div>
+      </div>
+      <div class="card">
+        <div class="card-title">Undiscounted Payback Period</div>
+        <div class="card-value" id="paybackResult"></div>
+      </div>
+      <div class="card">
+        <div class="card-title">Discounted Payback Period</div>
+        <div class="card-value" id="dpbResult"></div>
+      </div>
+      <div class="card">
+        <div class="card-title">Net Present Value (NPV)</div>
+        <div class="card-value" id="npvResult"></div>
+      </div>
+      <div class="card">
+        <div class="card-title">Internal Rate of Return (IRR)</div>
+        <div class="card-value" id="irrResult"></div>
+      </div>
+      <div class="card">
+        <div class="card-title">Benefit-Cost Ratio (BCR)</div>
+        <div class="card-value" id="bcrResult"></div>
+      </div>
+      <div class="card" id="profitabilityCard">
+        <div class="card-title">Result</div>
+        <div class="card-value" id="profitabilityResult"></div>
+      </div>
+
+      <!-- Chart -->
+      <div class="card chart-card">
+        <div class="card-title">Year-wise Benefits, Costs & Payback</div>
+        <div class="chart-wrap">
+          <canvas id="cashflowChart"></canvas>
+        </div>
+        <div id="chartNote" class="chart-note"></div>
+        <div id="chartNarrative" style="margin:8px 0 14px 0;"></div>
+      </div>
+    </div>
+
+    <div id="reportSection" style="margin-top: 40px;"></div>
+    <button type="button" id="downloadPdfBtn" onclick="downloadPDF()" style="display:none;">
+        Download Report as PDF
+    </button>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
