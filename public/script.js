@@ -450,22 +450,7 @@ function calculateDiscountedPayback(benefits, costs, discountRatePct) {
 
 
 
-  // Attach event listeners after the page loads
-  document.addEventListener("DOMContentLoaded", () => {
-    document.getElementById("calculateBtn")
-      .addEventListener("click", calculateAll);
-
-    document.getElementById("generateReportBtn")
-      .addEventListener("click", generateAndShowReport);
-
-    document.getElementById("downloadPdfBtn")
-      .addEventListener("click", downloadPDF);
-
-    document.getElementById("formulasBtn")
-      .addEventListener("click", () => {
-        window.open("docs.html", "_blank");
-      });
-  });
+  
 
 
 
@@ -730,6 +715,27 @@ function calculateAll() {
     alert(err.message || err);
   }
 }
+
+
+// Attach event listeners after the page loads
+  document.addEventListener("DOMContentLoaded", () => {
+    document.getElementById("calculateBtn")
+      .addEventListener("click", calculateAll);
+
+    document.getElementById("generateReportBtn")
+      .addEventListener("click", generateAndShowReport);
+
+    document.getElementById("downloadPdfBtn")
+      .addEventListener("click", downloadPDF);
+
+    document.getElementById("formulasBtn")
+      .addEventListener("click", () => {
+        window.open("docs.html", "_blank");
+      });
+  });
+
+
+
 
 /*******************************
  * OpenAI — Easy-English narratives (single source)
