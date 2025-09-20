@@ -717,22 +717,7 @@ function calculateAll() {
 }
 
 
-// Attach event listeners after the page loads
-  document.addEventListener("DOMContentLoaded", () => {
-    document.getElementById("calculateBtn")
-      .addEventListener("click", calculateAll);
 
-    document.getElementById("generateReportBtn")
-      .addEventListener("click", generateAndShowReport);
-
-    document.getElementById("downloadPdfBtn")
-      .addEventListener("click", downloadPDF);
-
-    document.getElementById("formulasBtn")
-      .addEventListener("click", () => {
-        window.open("docs.html", "_blank");
-      });
-  });
 
 
 
@@ -1205,3 +1190,22 @@ async function downloadPDF() {
     alert(err.message || err);
   }
 }
+
+
+
+// Attach event listeners after the page loads
+  document.addEventListener("DOMContentLoaded", () => {
+    document.getElementById("calculateBtn")
+      .addEventListener("click", calculateAll);
+
+    document.getElementById("generateReportBtn")
+      .addEventListener("click", generateAndShowReport);
+
+    document.getElementById("downloadPdfBtn")
+      .addEventListener("click", downloadPDF);
+
+    document.getElementById("formulasBtn")
+      .addEventListener("click", () => {
+        window.open("docs.html", "_blank");
+      });
+  });
