@@ -53,9 +53,11 @@ app.post('/api/openai/chat', async (req, res) => {
 });
 
 // Fallback: serve index.html for everything else
-app.get('*', (req, res) => {
+// Match all routes
+app.get('/*', (req, res) => {
   res.sendFile(path.join(__dirname, '../public/index.html'));
 });
+
 
 const port = process.env.PORT || 3000;
 app.listen(port, () => console.log(`✅ Server running on port ${port}`));
