@@ -458,6 +458,9 @@ function calculateDiscountedPayback(benefits, costs, discountRatePct) {
     document.getElementById("generateReportBtn")
       .addEventListener("click", generateAndShowReport);
 
+    document.getElementById("downloadPdfBtn")
+      .addEventListener("click", downloadPDF);
+
     document.getElementById("formulasBtn")
       .addEventListener("click", () => {
         window.open("docs.html", "_blank");
