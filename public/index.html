@@ -26,7 +26,7 @@
 
       <div class="input-row">
         <div class="input-group">
-          <label for="upfrontInvestment">Initial IoT Investment Cost</label>
+          <label for="upfrontInvestment">Initial Investment Cost</label>
           <input type="number" id="upfrontInvestment" min="0" step="any" required />
         </div>
 
@@ -63,8 +63,8 @@
 
       
       <button id="calculateBtn" type="button">Calculate</button>
-      
-      <button id="generateReportBtn" type="button">Generate Report</button>
+      <button id="btnFormalReport" class="primary">Formal Report</button>
+      <button id="generateReportBtn" type="button">User-Friendly Report</button>
       
       
       <button id="formulasBtn" type="button" class="btn-secondary">
@@ -120,7 +120,10 @@
 
     <div id="reportSection" style="margin-top: 40px;"></div>
     <button type="button" id="downloadPdfBtn" style="display:none;">
-        Download Report as PDF
+        Download User-Friendly Report as PDF
+    </button>
+    <button type="button" id="downloadFormalPdfBtn" style="display:none;">
+        Download Formal Report as PDF
     </button>
   </div>
 

@@ -375,3 +375,84 @@ body {
   font-style: italic;
 }
 
+
+
+/* === Uniform control styling for inputs and selects === */
+:root{
+  --ctrl-bg: #fff;
+  --ctrl-border: #d1d5db;   /* light gray */
+  --ctrl-border-hover:#9ca3af;
+  --ctrl-radius: 8px;
+  --ctrl-pad-y: 8px;
+  --ctrl-pad-x: 12px;
+  --ctrl-height: 36px;
+  --ctrl-shadow-inset: inset 0 1px 2px rgba(0,0,0,.04);
+  --ctrl-focus-ring: 0 0 0 3px rgba(13,110,253,.15); /* soft blue ring */
+  --ctrl-focus-border:#0d6efd; /* blue border on focus */
+}
+
+/* Text-like controls */
+input[type="text"],
+input[type="number"],
+input[type="email"],
+input[type="search"],
+input[type="tel"],
+select {
+  -webkit-appearance: none;
+  appearance: none;
+  background: var(--ctrl-bg);
+  border: 1px solid var(--ctrl-border);
+  border-radius: var(--ctrl-radius);
+  padding: var(--ctrl-pad-y) var(--ctrl-pad-x);
+  height: var(--ctrl-height);
+  line-height: 1.2;
+  font: inherit;
+  color: inherit;
+  box-shadow: var(--ctrl-shadow-inset);
+  transition: border-color .15s ease, box-shadow .15s ease, background-color .15s ease;
+}
+
+/* Hover */
+input[type="text"]:hover,
+input[type="number"]:hover,
+input[type="email"]:hover,
+input[type="search"]:hover,
+input[type="tel"]:hover,
+select:hover {
+  border-color: var(--ctrl-border-hover);
+}
+
+/* Focus (same feel as your dropdown) */
+input[type="text"]:focus,
+input[type="number"]:focus,
+input[type="email"]:focus,
+input[type="search"]:focus,
+input[type="tel"]:focus,
+select:focus {
+  outline: 0;
+  border-color: var(--ctrl-focus-border);
+  box-shadow: var(--ctrl-shadow-inset), var(--ctrl-focus-ring);
+}
+
+/* Disabled (shared look) */
+input[disabled],
+select[disabled] {
+  background: #f3f4f6;
+  color: #6b7280;
+  cursor: not-allowed;
+}
+
+/* Optional: give select the same clean arrow */
+select {
+  background-image:
+    linear-gradient(45deg, transparent 50%, #6b7280 50%),
+    linear-gradient(135deg, #6b7280 50%, transparent 50%),
+    linear-gradient(to right, transparent, transparent);
+  background-position:
+    calc(100% - 16px) 50%,
+    calc(100% - 11px) 50%,
+    100% 0;
+  background-size: 6px 6px, 6px 6px, 2.5rem 100%;
+  background-repeat: no-repeat;
+  padding-right: 2.25rem; /* space for arrow */
+}

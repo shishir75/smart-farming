@@ -694,13 +694,10 @@ function calculateAll() {
     document.getElementById("bcrResult").textContent     = fmt2(M.bcr);
 
     const profitabilityElem = document.getElementById("profitabilityResult");
-    if (M.bcr > 1) {
-      profitabilityElem.textContent = "Profitable";
-      profitabilityElem.className = "card-value profitable";
-    } else {
-      profitabilityElem.textContent = "Not Profitable";
-      profitabilityElem.className = "card-value not-profitable";
-    }
+    const profitable = (M.bcr > 1) || (M.npv > 0);
+    profitabilityElem.textContent = profitable ? "Profitable" : "Not Profitable";
+    profitabilityElem.className = "card-value " + (profitable ? "profitable" : "not-profitable");
+
 
     document.getElementById("results").style.display = "flex";
 
@@ -743,8 +740,8 @@ async function fetchNarrativesEasyEnglish(M, chartPNG) {
         NPV: ${money(M.npv)}
         IRR: ${M.irr}%
         BCR: ${M.bcr}
-        Undiscounted Payback: ${M.paybackUndiscounted} years
-        Discounted Payback: ${M.paybackDiscounted} years
+        Undiscounted Payback: ${M.payback} years
+        Discounted Payback: ${M.discountedPayback} years
 
         Yearly Details: ${yearlyLines}
     `;
@@ -918,7 +915,7 @@ async function generateAndShowReport() {
 
       <h2>Financial Metrics</h2>
       <table>
-        <thead><tr><th>ROI (%)</th><th>Undiscounted Payback (years)</th> <th>Discounted Payback (years)</th> <th>NPV ($)</th><th>IRR (%)</th><th>BCR</th></tr></thead>
+        <thead><tr><th>ROI (%)</th><th>Undiscounted Payback (years)</th> <th>Discounted Payback (years)</th> <th>NPV</th><th>IRR (%)</th><th>BCR</th></tr></thead>
         <tbody>
           <tr>
             <td>${fmt2(M.roi)}</td>
@@ -1125,7 +1122,7 @@ async function downloadPDF() {
                   {text:'ROI (%)', style:'thRow'},
                   {text:'Undiscounted Payback (years)', style:'thRow'},
                   {text:'Discounted. Payback (years)', style:'thRow'},   // NEW
-                  {text:'NPV ($)', style:'thRow'},
+                  {text:'NPV', style:'thRow'},
                   {text:'IRR (%)', style:'thRow'},
                   {text:'BCR', style:'thRow'}
                 ],
@@ -1193,6 +1190,377 @@ async function downloadPDF() {
 
 
 
+
+
+// For Formal Report (separate button)
+
+    // Formal flow cache (same idea as currentNarratives/currentMetrics)
+    let currentFormalNarratives = null;  // { overview, analysis[], chartExplanation, conclusion }
+    let currentFormalMetrics    = null;  // snapshot used to produce the narratives
+
+
+    async function fetchNarrativesFormalEnglish(M, chartPNG) {
+      try {
+        const yearlyLines = M.benefits.map((b, i) => {
+          const label = (i === 0) ? "Initial Investment" : `Year ${i}`;
+          return `${label}: Benefits ${money(b)}, Costs ${money(M.costs[i])}`;
+        }).join('\n');
+
+        const prompt = `
+            Project Metrics:
+            ROI: ${M.roi}%
+            NPV: ${money(M.npv)}
+            IRR: ${M.irr}%
+            BCR: ${M.bcr}
+            Undiscounted Payback: ${M.payback} years
+            Discounted Payback: ${M.discountedPayback} years
+
+            Yearly Details: ${yearlyLines}
+        `;
+
+        const body = {
+          model: "gpt-5-mini",
+          messages: [
+            {
+              role: "system",
+              content: `You are a financial analyst. Write in formal US English for an executive audience.
+              Use clear, objective, third-person prose. Always respond ONLY in valid JSON with this structure:
+              {
+                "overview": "one concise formal paragraph summarising the project and headline figures (ROI, Undiscounted Payback Period, Discounted Payback Period, NPV, IRR, BCR).",
+                "analysis": [
+                  "<strong class='metric-name' style='color:blue;'>ROI</strong> — <em class='explanation'>3–5 concise formal sentences interpreting the figure and implications</em>",
+                  "<strong class='metric-name' style='color:blue;'>Undiscounted Payback Period</strong> — <em class='explanation'>…</em>",
+                  "<strong class='metric-name' style='color:blue;'>Discounted Payback Period</strong> — <em class='explanation'>…</em>",
+                  "<strong class='metric-name' style='color:blue;'>NPV</strong> — <em class='explanation'>…</em>",
+                  "<strong class='metric-name' style='color:blue;'>IRR</strong> — <em class='explanation'>…</em>",
+                  "<strong class='metric-name' style='color:blue;'>BCR</strong> — <em class='explanation'>…</em>"
+                ],
+                "chartExplanation": "a single formal paragraph explaining the chart (benefits, costs, cumulative line, and both paybacks).",
+                "conclusion": "a short formal recommendation grounded in the metrics."
+              }`
+            },
+            { role: "user", content: prompt },
+            ...(chartPNG ? [{
+              role: "user",
+              content: [
+                { type: "text", text: "Here is the Cash Flow Chart image to describe:" },
+                { type: "image_url", image_url: { url: chartPNG } }
+              ]
+            }] : [])
+          ],
+        };
+
+        const API_BASE = window.location.hostname.includes("localhost")
+          ? "http://localhost:3000"
+          : "https://smart-farming-mkqd.onrender.com";
+
+        const res = await fetch(`${API_BASE}/api/openai/chat`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body)
+        });
+
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          throw new Error(err.error?.message || "AI server error");
+        }
+
+        const { text } = await res.json();
+
+        let jsonStart = text.indexOf("{");
+        let jsonEnd = text.lastIndexOf("}");
+        if (jsonStart !== -1 && jsonEnd !== -1) {
+          try {
+            const obj = JSON.parse(text.slice(jsonStart, jsonEnd + 1));
+            return {
+              overview: String(obj.overview || ""),
+              analysis: Array.isArray(obj.analysis) ? obj.analysis.map(String) : [],
+              chartExplanation: String(obj.chartExplanation || ""),
+              conclusion: String(obj.conclusion || "")
+            };
+          } catch {
+            return { overview: text, analysis: [], chartExplanation: "", conclusion: "" };
+          }
+        }
+        return { overview: text, analysis: [], chartExplanation: "", conclusion: "" };
+
+      } catch (e) {
+        console.error("AI fetch (formal) failed:", e);
+        return {
+          overview: "⚠️ Unable to generate formal narrative right now.",
+          analysis: [],
+          chartExplanation: "",
+          conclusion: ""
+        };
+      }
+    }
+
+
+async function generateAndShowFormalReport() {
+  const loadingEl = document.getElementById('loadingMessage');
+  if (loadingEl) {
+    loadingEl.textContent = 'Generating formal report...';
+    loadingEl.style.display = 'block';
+  }
+  const btn = document.getElementById('btnFormalReport');
+  if (btn) {
+    btn.disabled = true;
+    btn.dataset._oldText = btn.textContent;
+    btn.textContent = 'Generating...';
+  }
+
+  try {
+    // hide the formal PDF button until we finish
+    const downloadFormalBtn = document.getElementById("downloadFormalPdfBtn");
+    if (downloadFormalBtn) downloadFormalBtn.style.display = "none";
+
+    const M = buildSeriesAndMetrics();
+    const chartPNG = getChartPNG(2);
+
+    const signature = JSON.stringify({
+      upf: M.upfrontInvestment, life: M.projectLifetime, disc: M.discountRate,
+      b: M.benefits, c: M.costs
+    });
+
+    if (!currentFormalMetrics || currentFormalMetrics.signature !== signature) {
+      currentFormalNarratives = await fetchNarrativesFormalEnglish(M, chartPNG);
+      currentFormalMetrics = { signature, ...M };
+    }
+
+    let yearlyRows = M.benefits.map((b,i)=>`
+      <tr>
+        <td>${i===0?'Initial Investement':`Year ${i}`}</td>
+        <td>${money(b)}</td>
+        <td>${money(M.costs[i])}</td>
+      </tr>
+    `).join('');
+
+    const totalBenefitsAll = M.benefits.reduce((a,v)=>a+(v||0),0);
+    const totalCostsAll    = M.costs.reduce((a,v)=>a+(v||0),0);
+
+    yearlyRows += `
+      <tr style="font-weight:700; background:#f3f4f6;">
+        <td>Total</td>
+        <td>${money(totalBenefitsAll)}</td>
+        <td>${money(totalCostsAll)}</td>
+      </tr>
+    `;
+
+    const html = `
+      <h1>Smart Farming Investment – Formal Feasibility Report</h1>
+
+      <h2>Project Overview</h2>
+      <p>${currentFormalNarratives.overview || ''}</p>
+
+      <h2>Financial Summary</h2>
+      <table>
+        <thead><tr><th>Initial Investement</th><th>Project Lifetime</th><th>Discount Rate</th></tr></thead>
+        <tbody><tr><td>${money(M.upfrontInvestment)}</td><td>${M.projectLifetime} years</td><td>${fmt2(M.discountRate)} %</td></tr></tbody>
+      </table>
+
+      <h2>Yearly Benefits and Costs</h2>
+      <table>
+        <thead><tr><th>Year</th><th>Benefits</th><th>Costs</th></tr></thead>
+        <tbody>${yearlyRows}</tbody>
+      </table>
+
+      <h2>Financial Metrics</h2>
+      <table>
+        <thead><tr><th>ROI (%)</th><th>Undiscounted Payback (years)</th><th>Discounted Payback (years)</th><th>NPV</th><th>IRR (%)</th><th>BCR</th></tr></thead>
+        <tbody>
+          <tr>
+            <td>${fmt2(M.roi)}</td>
+            <td>${isFinite(M.payback)?fmt2(M.payback):'N/A'}</td>
+            <td>${isFinite(M.discountedPayback)?fmt2(M.discountedPayback):'N/A'}</td>
+            <td>${money(M.npv)}</td>
+            <td>${M.irr===null?'N/A':fmt2(M.irr)}</td>
+            <td>${fmt2(M.bcr)}</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h2>Analysis</h2>
+      <ol>${(currentFormalNarratives.analysis || []).map(x => `<li>${cleanListItem(x)}</li>`).join('')}</ol>
+
+      <h2>Conclusion</h2>
+      <p>${currentFormalNarratives.conclusion || ''}</p>
+    `;
+
+    document.getElementById("reportSection").innerHTML = html;
+
+    const chartNarrDiv = document.getElementById('chartNarrative');
+    if (chartNarrDiv) {
+      chartNarrDiv.innerHTML = currentFormalNarratives.chartExplanation
+        ? `<p style="text-align:justify; font-weight:normal;">${currentFormalNarratives.chartExplanation}</p>`
+        : "";
+    }
+
+    // show the Formal PDF button now (mirrors old behaviour)
+    if (downloadFormalBtn) downloadFormalBtn.style.display = "inline-block";
+
+  } catch (error) {
+    document.getElementById("reportSection").innerHTML = `<p style="color:red;">Error: ${error.message}</p>`;
+    const downloadFormalBtn = document.getElementById("downloadFormalPdfBtn");
+    if (downloadFormalBtn) downloadFormalBtn.style.display = "none";
+  } finally {
+    if (loadingEl) loadingEl.style.display = 'none';
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = btn.dataset._oldText || 'Formal Report (On-page)';
+      delete btn.dataset._oldText;
+    }
+  }
+}
+
+    
+
+
+async function downloadFormalPDF() {
+  try {
+    const M = buildSeriesAndMetrics();
+
+    // NOTE: get chart image before using it
+    const chartPNG = getChartPNG(2);
+
+    const signature = JSON.stringify({ upf:M.upfrontInvestment, life:M.projectLifetime, disc:M.discountRate, b:M.benefits, c:M.costs });
+
+    if (!currentFormalMetrics || currentFormalMetrics.signature !== signature || !currentFormalNarratives) {
+      currentFormalNarratives = await fetchNarrativesFormalEnglish(M, chartPNG);
+      currentFormalMetrics = { signature, ...M };
+    }
+
+    const yearlyRows = [
+      [{text:'Year', style:'thRow'}, {text:'Benefits', style:'thRow'}, {text:'Costs', style:'thRow'}],
+      ...M.benefits.map((b, i) => [
+        (i===0 ? 'Initial Investment' : `Year ${i}`),
+        money(b), money(M.costs[i])
+      ])
+    ];
+
+    const totalBenefitsAll = M.benefits.reduce((a,v)=>a+(v||0),0);
+    const totalCostsAll    = M.costs.reduce((a,v)=>a+(v||0),0);
+    yearlyRows.push([
+      { text:'Total', bold:true },
+      { text: money(totalBenefitsAll), bold:true },
+      { text: money(totalCostsAll), bold:true }
+    ]);
+
+    const pdfAnalysisItems = (currentFormalNarratives.analysis && currentFormalNarratives.analysis.length)
+      ? currentFormalNarratives.analysis.map(analysisHtmlToPdfSpan)
+      : [{ text: '—' }];
+
+    const docDefinition = {
+      info: { title: 'Smart Farming Investment – Formal Feasibility Report', author: 'Smart Farming Calculator' },
+      pageSize: 'A4',
+      pageMargins: [48, 72, 48, 72],
+      header: (currentPage) => ({
+        margin: [48, 24, 48, 0],
+        columns: [
+          { text: currentPage === 1 ? '' : 'Smart Farming Investment – Formal Feasibility Report', alignment: 'left',  fontSize: 9, color: '#356ac3' },
+          { text: currentPage === 1 ? '' : new Date().toLocaleDateString(),          alignment: 'right', fontSize: 9, color: '#6b7280' }
+        ]
+      }),
+      footer: (currentPage, pageCount) => ({
+        margin: [48, 0, 48, 24],
+        columns: [
+          { text: '© 2025 - SARDER MD OBYDULLAH', alignment: 'left', fontSize: 9, color: '#6b7280' },
+          { text: `Page ${currentPage} of ${pageCount}`, alignment: 'right', fontSize: 9, color: '#6b7280' }
+        ]
+      }),
+      content: [
+        { text: 'Smart Farming Investment – Formal Feasibility Report', style: 'h1' },
+
+        keepTogether('Project Overview', { text: currentFormalNarratives.overview || '—', style: 'para' }),
+
+        keepTogether('Financial Summary', {
+          table: {
+            widths: ['*','*','*'],
+            headerRows: 1,
+            body: [
+              [{text:'Initial Investment', style:'thRow'}, {text:'Project Lifetime (years)', style:'thRow'}, {text:'Discount Rate (%)', style:'thRow'}],
+              [money(M.upfrontInvestment), String(M.projectLifetime), fmt2(M.discountRate)]
+            ]
+          },
+          layout: { fillColor: (rowIdx)=> rowIdx===0?'#e9f2ff':null, hLineColor:'#dbe3ef', vLineColor:'#dbe3ef' },
+          margin: [0, 0, 0, 14]
+        }),
+
+        keepTogether('Yearly Benefits and Costs', {
+          table: { widths: ['*','*','*'], headerRows: 1, body: yearlyRows },
+          layout: {
+            fillColor: (rowIdx, node)=> rowIdx===0 ? '#e9f2ff' :
+                                      (rowIdx===node.table.body.length-1 ? '#f3f4f6' : (rowIdx%2===0 ? '#f8fafc' : null)),
+            hLineColor:'#e5e7eb', vLineColor:'#e5e7eb'
+          },
+          margin: [0, 0, 0, 14]
+        }),
+
+        keepTogether('Financial Metrics', {
+          table: {
+            widths: ['*','*','*','*','*','*'],
+            headerRows: 1,
+            body: [
+              [
+                {text:'ROI (%)', style:'thRow'},
+                {text:'Undiscounted Payback (years)', style:'thRow'},
+                {text:'Discounted. Payback (years)', style:'thRow'},
+                {text:'NPV', style:'thRow'},
+                {text:'IRR (%)', style:'thRow'},
+                {text:'BCR', style:'thRow'}
+              ],
+              [
+                fmt2(M.roi),
+                isFinite(M.payback)?fmt2(M.payback):'N/A',
+                isFinite(M.discountedPayback)?fmt2(M.discountedPayback):'N/A',
+                money(M.npv),
+                (M.irr===null?'N/A':fmt2(M.irr)),
+                fmt2(M.bcr)
+              ]
+            ]
+          },
+          layout: { fillColor:(r)=>r===0?'#e9f2ff':null, hLineColor:'#dbe3ef', vLineColor:'#dbe3ef' },
+          margin: [0, 0, 0, 16]
+        }),
+
+        ...(chartPNG ? [{
+          unbreakable: true,
+          stack: [
+            { text: 'Cash Flow Chart (Years 1..N)', style: 'h2' },
+            { image: chartPNG, width: 500, margin: [0, 6, 0, 6] },
+            { text: `Note: Initial investment of ${money(M.upfrontInvestment)} happens at Year 0 and is not shown in the bars above.`, style: 'note' }
+          ],
+          margin: [0, 0, 0, 8]
+        }] : []),
+
+        { text: currentFormalNarratives.chartExplanation || '—', style: 'para', alignment: 'justify', margin: [0, 6, 0, 0] },
+
+        { text: 'Analysis', style: 'h2', alignment: 'justify' },
+        { ol: pdfAnalysisItems, margin: [14, 0, 0, 14], alignment: 'justify' },
+
+        keepTogether('Conclusion', { text: currentFormalNarratives.conclusion || '—', style: 'para' })
+      ],
+      styles: {
+        h1:  { fontSize: 20, bold: true, color: '#0d6efd', alignment: 'center', margin: [0, 0, 0, 10] },
+        h2:  { fontSize: 13, bold: true, color: '#0d6efd', margin: [0, 16, 0, 8] },
+        thRow: { bold: true, color: '#1f2937' },
+        para: { fontSize: 11, lineHeight: 1.45, color: '#111827' },
+        note: { italics: true, color: '#6b7280', margin: [0, 4, 0, 12] }
+      },
+      defaultStyle: { fontSize: 11, lineHeight: 1.35 }
+    };
+
+    pdfMake.createPdf(docDefinition).download('Formal_Executive_Report.pdf');
+  } catch (err) {
+    alert(err.message || err);
+  }
+}
+
+
+
+
+
+
+
 // Attach event listeners after the page loads
   document.addEventListener("DOMContentLoaded", () => {
     document.getElementById("calculateBtn")
@@ -1208,4 +1576,11 @@ async function downloadPDF() {
       .addEventListener("click", () => {
         window.open("docs.html", "_blank");
       });
+
+    document.getElementById('btnFormalReport')
+      .addEventListener('click', generateAndShowFormalReport);
+
+    document.getElementById('downloadFormalPdfBtn')
+      .addEventListener('click', downloadFormalPDF);
+
   });
