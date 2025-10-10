@@ -65,6 +65,8 @@
       <button id="calculateBtn" type="button">Calculate</button>
       <button id="btnFormalReport" class="primary">Formal Report</button>
       <button id="generateReportBtn" type="button">User-Friendly Report</button>
+      <button id="btnBengaliReport" class="primary">বাংলা রিপোর্ট</button>
+
       
       
       <button id="formulasBtn" type="button" class="btn-secondary">
@@ -79,7 +81,7 @@
 
     <div class="results" id="results" style="display:none;">
       <div class="card">
-        <div class="card-title">ROI</div>
+        <div class="card-title">Return on Investment (ROI)</div>
         <div class="card-value" id="roiResult"></div>
       </div>
       <div class="card">
@@ -125,7 +127,17 @@
     <button type="button" id="downloadFormalPdfBtn" style="display:none;">
         Download Formal Report as PDF
     </button>
+
+    <button id="downloadBengaliPdfBtn" class="primary outline" style="display:none;">
+      বাংলা PDF ডাউনলোড
+    </button>
+
+
   </div>
+
+
+  <script src="/libs/pdfmake.min.js"></script>
+  <script src="/libs/vfs_fonts.js"></script> <!-- provides Roboto normal/bold/italics -->
 
   <script src="script.js"></script>
 </body>

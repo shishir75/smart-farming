@@ -1559,6 +1559,443 @@ async function downloadFormalPDF() {
 
 
 
+let currentBengaliNarratives = null; // { overview, analysis[], chartExplanation, conclusion }
+let currentBengaliMetrics    = null; // snapshot for cache key/signature
+
+
+async function fetchNarrativesBengali(M, chartPNG) {
+  try {
+    const yearlyLines = M.benefits.map((b, i) => {
+      const label = (i === 0) ? "প্রারম্ভিক বিনিয়োগ" : `Year ${i}`;
+      return `${label}: সুবিধা ${money(b)}, খরচ ${money(M.costs[i])}`;
+    }).join('\n');
+
+    // ⬇️ REPLACE just the prompt string with this friendlier version
+    const prompt = `
+      আপনি সহজ ভাষায় ফাইন্যান্স বোঝাতে দক্ষ। কৃষক ও স্থানীয় কর্মকর্তা যেন বুঝতে পারে,
+      তেমন **ব্যবহারবান্ধব বাংলা** রিপোর্ট লিখুন। আউটপুট **শুধু বৈধ JSON** হবে—নীচের
+      কাঠামো ও কী-নাম (keys) অপরিবর্তিত রাখুন।
+
+      ভাষার নিয়ম:
+      - টোন: বন্ধুসুলভ, ব্যাখ্যামূলক, 'আপনি' সম্বোধন।
+      - বাক্য ছোট রাখুন; জটিল শব্দ ও অতিরিক্ত আনুষ্ঠানিক ভঙ্গি পরিহার করুন।
+      - জার্গন এড়িয়ে চলুন; লাগলে বন্ধনীর মধ্যে সংক্ষিপ্ত মানে দিন:
+        ROI = বিনিয়োগে লাভের হার, NPV = বর্তমান মূল্যে মোট লাভ-ক্ষতি,
+        IRR = যে হারে NPV শূন্য হয়, BCR = লাভ/খরচ অনুপাত,
+        Payback = বিনিয়োগের টাকা ফেরত পেতে সময়।
+      - সংখ্যাগুলো স্পষ্ট করে বলুন (কত টাকা, কত বছর/মাস) এবং বাস্তব টোনে পরামর্শ দিন।
+      - ইমোজি নয়, কিন্তু উষ্ণ ও সহজ ভাষা ব্যবহার করুন।
+
+      আউটপুট (JSON):
+      {
+        "overview": "৩–৪ লাইনে সহজ সারাংশ—প্রকল্প কী, মোটামুটি ফল কী দেখা যাচ্ছে, এবং আজকের সিদ্ধান্ত এক লাইনে (করা উচিত/আরও যাচাই দরকার)।",
+        "analysis": [
+          "ROI — ২–৩টি ছোট বাক্যে কী বোঝায় ও এই ডেটা থেকে কী অনুমান করা যায়।",
+          "Undiscounted Payback — ২–৩টি ছোট বাক্যে, কত সময়ে টাকা ওঠে, মাস/বছরের ইঙ্গিত দিন।",
+          "Discounted Payback — ২–৩টি ছোট বাক্যে, সময়ের মূল্য ধরা হলে ফল কী বদলায়।",
+          "NPV — ২–৩টি ছোট বাক্যে, মোট লাভ-ক্ষতি বর্তমান দামে কী বোঝাচ্ছে।",
+          "IRR — ২–৩টি ছোট বাক্যে, ডিসকাউন্ট রেটের সাথে তুলনা করে অর্থ কী।",
+          "BCR — ২–৩টি ছোট বাক্যে, প্রতি ১ টাকা খরচে আনুমানিক কত টাকা সুবিধা।"
+        ],
+        "chartExplanation": "২–৩টি বাক্যে চার্ট কী দেখাচ্ছে—বছরভিত্তিক সুবিধা/খরচ, ক্রমবর্ধমান নেট লাইনের দিক, এবং Year 0-এর প্রারম্ভিক খরচ কীভাবে ধরা হয়েছে।",
+        "conclusion": "২–৩টি বাক্যে স্পষ্ট পরামর্শ—করণীয়/সতর্কতা/কোন শর্তে এগোলে ভালো।"
+      }
+
+      প্রকল্পের সূচক (ডেটা):
+      - ROI: ${M.roi}% 
+      - NPV: ${money(M.npv)}
+      - IRR: ${M.irr}%
+      - BCR: ${M.bcr}
+      - Undiscounted Payback: ${M.payback} বছর
+      - Discounted Payback: ${M.discountedPayback} বছর
+
+      সময়ভিত্তিক তথ্য:
+      ${yearlyLines}
+      `.trim();
+
+
+    const body = {
+      model: "gpt-5-mini",
+      messages: [
+        { role: "system", content: "Explain finance in simple Bengali for farmers and local officials. Keep tone friendly and practical. Respond ONLY with valid JSON" },
+        { role: "user", content: prompt },
+        ...(chartPNG ? [{
+          role: "user",
+          content: [
+            { type: "text", text: "এটি ক্যাশ-ফ্লো চার্ট (PNG base64):" },
+            { type: "image_url", image_url: { url: chartPNG } }
+          ]
+        }] : [])
+      ]
+    };
+
+    const API_BASE = window.location.hostname.includes("localhost")
+      ? "http://localhost:3000"
+      : "https://smart-farming-mkqd.onrender.com";
+
+    const res = await fetch(`${API_BASE}/api/openai/chat`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body)
+    });
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error?.message || "AI server error");
+    }
+
+    const { text } = await res.json();
+
+    // same safe JSON extraction you use
+    let jsonStart = text.indexOf("{");
+    let jsonEnd = text.lastIndexOf("}");
+    if (jsonStart !== -1 && jsonEnd !== -1) {
+      try {
+        const obj = JSON.parse(text.slice(jsonStart, jsonEnd + 1));
+        return {
+          overview: String(obj.overview || ""),
+          analysis: Array.isArray(obj.analysis) ? obj.analysis.map(String) : [],
+          chartExplanation: String(obj.chartExplanation || ""),
+          conclusion: String(obj.conclusion || "")
+        };
+      } catch {
+        return { overview: text, analysis: [], chartExplanation: "", conclusion: "" };
+      }
+    }
+    return { overview: text, analysis: [], chartExplanation: "", conclusion: "" };
+
+  } catch (e) {
+    console.error("AI fetch (Bengali) failed:", e);
+    return {
+      overview: "⚠️ বাংলা রিপোর্ট এই মুহূর্তে তৈরি করা যাচ্ছে না। পরে আবার চেষ্টা করুন।",
+      analysis: [],
+      chartExplanation: "",
+      conclusion: ""
+    };
+  }
+}
+
+
+async function generateAndShowBengaliReport() {
+  const loadingEl = document.getElementById('loadingMessage');
+  if (loadingEl) {
+    loadingEl.textContent = 'বাংলা রিপোর্ট তৈরি হচ্ছে...';
+    loadingEl.style.display = 'block';
+  }
+  const btn = document.getElementById('btnBengaliReport');
+  if (btn) {
+    btn.disabled = true;
+    btn.dataset._oldText = btn.textContent;
+    btn.textContent = 'Generating...';
+  }
+
+  try {
+    // hide Bengali PDF button until ready
+    const downloadBnBtn = document.getElementById("downloadBengaliPdfBtn");
+    if (downloadBnBtn) downloadBnBtn.style.display = "none";
+
+    const M = buildSeriesAndMetrics();
+    const chartPNG = getChartPNG(2); // compute before PDF use
+
+    const signature = JSON.stringify({
+      upf: M.upfrontInvestment, life: M.projectLifetime, disc: M.discountRate,
+      b: M.benefits, c: M.costs
+    });
+
+    if (!currentBengaliMetrics || currentBengaliMetrics.signature !== signature) {
+      currentBengaliNarratives = await fetchNarrativesBengali(M, chartPNG);
+      currentBengaliMetrics = { signature, ...M };
+    }
+
+    let rows = M.benefits.map((b,i)=>`
+      <tr>
+        <td>${i===0?'প্রারম্ভিক বিনিয়োগ':`Year ${i}`}</td>
+        <td>${money(b)}</td>
+        <td>${money(M.costs[i])}</td>
+      </tr>
+    `).join('');
+
+    const totalB = M.benefits.reduce((a,v)=>a+(v||0),0);
+    const totalC = M.costs.reduce((a,v)=>a+(v||0),0);
+    rows += `
+      <tr style="font-weight:700; background:#f3f4f6;">
+        <td>মোট</td><td>${money(totalB)}</td><td>${money(totalC)}</td>
+      </tr>
+    `;
+
+    const html = `
+      <h1>স্মার্ট ফার্মিং বিনিয়োগ — বাংলা প্রতিবেদন</h1>
+
+      <h2>প্রকল্পের সারসংক্ষেপ</h2>
+      <p>${currentBengaliNarratives.overview || ''}</p>
+
+      <h2>আর্থিক সংক্ষিপ্তসার</h2>
+      <table>
+        <thead><tr><th>প্রারম্ভিক বিনিয়োগ</th><th>প্রকল্পের স্থায়িত্ব</th><th>ডিসকাউন্ট রেট</th></tr></thead>
+        <tbody><tr><td>${money(M.upfrontInvestment)}</td><td>${M.projectLifetime} বছর</td><td>${fmt2(M.discountRate)} %</td></tr></tbody>
+      </table>
+
+      <h2>বার্ষিক সুবিধা ও খরচ</h2>
+      <table>
+        <thead><tr><th>বছর</th><th>সুবিধা</th><th>খরচ</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+
+      <h2>আর্থিক সূচক</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>ROI (%)</th>
+            <th>পেব্যাক (Undiscounted)</th>
+            <th>পেব্যাক (Discounted)</th>
+            <th>NPV (${currentCurrency.code})</th>
+            <th>IRR (%)</th>
+            <th>BCR</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>${fmt2(M.roi)}</td>
+            <td>${isFinite(M.payback)?fmt2(M.payback):'N/A'}</td>
+            <td>${isFinite(M.discountedPayback)?fmt2(M.discountedPayback):'N/A'}</td>
+            <td>${money(M.npv)}</td>
+            <td>${M.irr===null?'N/A':fmt2(M.irr)}</td>
+            <td>${fmt2(M.bcr)}</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h2>বিশ্লেষণ</h2>
+      <ol>${(currentBengaliNarratives.analysis || []).map(x => `<li>${cleanListItem(x)}</li>`).join('')}</ol>
+
+      <h2>উপসংহার</h2>
+      <p>${currentBengaliNarratives.conclusion || ''}</p>
+    `;
+
+    document.getElementById("reportSection").innerHTML = html;
+
+    const chartNarrDiv = document.getElementById('chartNarrative');
+    if (chartNarrDiv) {
+      chartNarrDiv.innerHTML = currentBengaliNarratives.chartExplanation
+        ? `<p style="text-align:justify; font-weight:normal;">${currentBengaliNarratives.chartExplanation}</p>`
+        : "";
+    }
+
+    // show Bengali PDF button now (same pattern as your existing flows)
+    if (downloadBnBtn) downloadBnBtn.style.display = "inline-block";
+
+  } catch (err) {
+    document.getElementById("reportSection").innerHTML = `<p style="color:red;">ত্রুটি: ${err.message}</p>`;
+    const downloadBnBtn = document.getElementById("downloadBengaliPdfBtn");
+    if (downloadBnBtn) downloadBnBtn.style.display = "none";
+  } finally {
+    if (loadingEl) loadingEl.style.display = 'none';
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = btn.dataset._oldText || 'বাংলা রিপোর্ট (অন-পেজ)';
+      delete btn.dataset._oldText;
+    }
+  }
+}
+
+
+
+
+
+
+
+// ===== Robust Bengali font loader for pdfmake (uses Hind Siliguri) =====
+function _ab_to_b64(buf) {
+  let out = "", u8 = new Uint8Array(buf), sz = 0x8000;
+  for (let i = 0; i < u8.length; i += sz) out += String.fromCharCode.apply(null, u8.subarray(i, i + sz));
+  return btoa(out);
+}
+
+async function ensureBengaliFont() {
+  if (window.__bnFontReady) return;
+
+  const base = 'libs/fonts/';                      // <- adjust ONLY if your files live elsewhere
+  const regular = 'HindSiliguri-Regular.ttf';
+  const bold    = 'HindSiliguri-Bold.ttf';
+
+  // fetch TTFs (no-cache to avoid stale 404s during dev)
+  const [rRes, bRes] = await Promise.all([
+    fetch(base + regular, { cache: 'no-store' }),
+    fetch(base + bold,    { cache: 'no-store' })
+  ]);
+
+  if (!rRes.ok || !bRes.ok) {
+    throw new Error(`Bangla fonts not found.\nExpected:\n  ${base}${regular}\n  ${base}${bold}`);
+  }
+
+  // inject into pdfMake's virtual FS
+  pdfMake.vfs = pdfMake.vfs || {};
+  pdfMake.vfs[regular] = _ab_to_b64(await rRes.arrayBuffer());
+  pdfMake.vfs[bold]    = _ab_to_b64(await bRes.arrayBuffer());
+
+  // EXTEND (do not overwrite) font map and alias Roboto/roboto -> Bengali
+  pdfMake.fonts = {
+    ...(pdfMake.fonts || {}),
+    bengali: { normal: regular, bold: bold, italics: regular, bolditalics: bold },
+    Roboto:  { normal: regular, bold: bold, italics: regular, bolditalics: bold },
+    roboto:  { normal: regular, bold: bold, italics: regular, bolditalics: bold }
+  };
+
+  window.__bnFontReady = true;
+}
+
+
+
+
+
+
+
+
+
+async function downloadBengaliPDF() {
+  try {
+    const M = buildSeriesAndMetrics();
+    const chartPNG = getChartPNG(2); // ensure defined before use
+
+    // make sure Bengali font is ready
+    await ensureBengaliFont();
+
+    const signature = JSON.stringify({ upf:M.upfrontInvestment, life:M.projectLifetime, disc:M.discountRate, b:M.benefits, c:M.costs });
+
+    if (!currentBengaliMetrics || currentBengaliMetrics.signature !== signature || !currentBengaliNarratives) {
+      currentBengaliNarratives = await fetchNarrativesBengali(M, chartPNG);
+      currentBengaliMetrics = { signature, ...M };
+    }
+
+    const yearlyTable = [
+      [{text:'বছর', style:'thRow'}, {text:'সুবিধা', style:'thRow'}, {text:'খরচ', style:'thRow'}],
+      ...M.benefits.map((b,i) => [
+        (i===0 ? 'প্রারম্ভিক বিনিয়োগ' : `Year ${i}`),
+        money(b), money(M.costs[i])
+      ])
+    ];
+
+    const totalB = M.benefits.reduce((a,v)=>a+(v||0),0);
+    const totalC = M.costs.reduce((a,v)=>a+(v||0),0);
+    yearlyTable.push([{ text:'মোট', bold:true }, { text: money(totalB), bold:true }, { text: money(totalC), bold:true }]);
+
+    const pdfAnalysis = (currentBengaliNarratives.analysis && currentBengaliNarratives.analysis.length)
+      ? currentBengaliNarratives.analysis.map(analysisHtmlToPdfSpan)
+      : [{ text: '—' }];
+
+    const dd = {
+      info: { title: 'স্মার্ট ফার্মিং — বাংলা প্রতিবেদন', author: 'Smart Farming Calculator' },
+      pageSize: 'A4',
+      pageMargins: [48, 72, 48, 72],
+      // ⬇️ ensure the Bengali font is used for all text in this PDF
+      defaultStyle: { font: 'bengali', fontSize: 11, lineHeight: 1.35 },
+      styles: {
+        h1:  { font: 'bengali', fontSize: 20, bold: true, color: '#0d6efd', alignment: 'center', margin: [0,0,0,10] },
+        h2:  { font: 'bengali', fontSize: 13, bold: true, color: '#0d6efd', margin: [0,16,0,8] },
+        thRow: { font: 'bengali', bold: true, color: '#1f2937' },
+        para: { font: 'bengali', fontSize: 11, lineHeight: 1.45, color: '#111827' },
+        note: { font: 'bengali', italics: true, color: '#6b7280', margin: [0,4,0,12] }
+      },
+      header: (pg)=>({ margin:[48,24,48,0], columns:[
+        { text: pg===1?'':'স্মার্ট ফার্মিং — বাংলা প্রতিবেদন', alignment:'left', fontSize:9, color:'#356ac3' },
+        { text: pg===1?'':new Date().toLocaleDateString(), alignment:'right', fontSize:9, color:'#6b7280' }
+      ]}),
+      footer: (pg, pc)=>({ margin:[48,0,48,24], columns:[
+        { text:'© 2025 - SARDER MD OBYDULLAH', alignment:'left', fontSize:9, color:'#6b7280' },
+        { text:`পৃষ্ঠা ${pg} / ${pc}`, alignment:'right', fontSize:9, color:'#6b7280' }
+      ]}),
+      content: [
+        { text: 'স্মার্ট ফার্মিং বিনিয়োগ — বাংলা প্রতিবেদন', style: 'h1' },
+
+        keepTogether('প্রকল্পের সারসংক্ষেপ', { text: currentBengaliNarratives.overview || '—', style: 'para' }),
+
+        keepTogether('আর্থিক সংক্ষিপ্তসার', {
+          table: {
+            widths: ['*','*','*'],
+            headerRows: 1,
+            body: [
+              [{text:'প্রারম্ভিক বিনিয়োগ', style:'thRow'}, {text:'প্রকল্পের স্থায়িত্ব (বছর)', style:'thRow'}, {text:'ডিসকাউন্ট রেট (%)', style:'thRow'}],
+              [money(M.upfrontInvestment), String(M.projectLifetime), fmt2(M.discountRate)]
+            ]
+          },
+          layout: { fillColor:(r)=>r===0?'#e9f2ff':null, hLineColor:'#dbe3ef', vLineColor:'#dbe3ef' },
+          margin: [0,0,0,14]
+        }),
+
+        keepTogether('বার্ষিক সুবিধা ও খরচ', {
+          table: { widths: ['*','*','*'], headerRows: 1, body: yearlyTable },
+          layout: {
+            fillColor: (rowIdx, node)=> rowIdx===0 ? '#e9f2ff' :
+                                      (rowIdx===node.table.body.length-1 ? '#f3f4f6' : (rowIdx%2===0 ? '#f8fafc' : null)),
+            hLineColor:'#e5e7eb', vLineColor:'#e5e7eb'
+          },
+          margin: [0,0,0,14]
+        }),
+
+        keepTogether('আর্থিক সূচক', {
+          table: {
+            widths: ['*','*','*','*','*','*'],
+            headerRows: 1,
+            body: [
+              [
+                {text:'ROI (%)', style:'thRow'},
+                {text:'পেব্যাক (Undisc.)', style:'thRow'},
+                {text:'পেব্যাক (Disc.)', style:'thRow'},
+                {text:`NPV (${currentCurrency.code})`, style:'thRow'},
+                {text:'IRR (%)', style:'thRow'},
+                {text:'BCR', style:'thRow'}
+              ],
+              [
+                fmt2(M.roi),
+                isFinite(M.payback)?fmt2(M.payback):'N/A',
+                isFinite(M.discountedPayback)?fmt2(M.discountedPayback):'N/A',
+                money(M.npv),
+                (M.irr===null?'N/A':fmt2(M.irr)),
+                fmt2(M.bcr)
+              ]
+            ]
+          },
+          layout: { fillColor:(r)=>r===0?'#e9f2ff':null, hLineColor:'#dbe3ef', vLineColor:'#dbe3ef' },
+          margin: [0,0,0,16]
+        }),
+
+        ...(chartPNG ? [{
+          unbreakable: true,
+          stack: [
+            { text: 'ক্যাশ-ফ্লো চার্ট (Years 1..N)', style: 'h2' },
+            { image: chartPNG, width: 500, margin: [0,6,0,6] },
+            { text: `বিঃদ্রঃ ${money(M.upfrontInvestment)} প্রারম্ভিক বিনিয়োগ Year 0-তে ঘটে, তাই বার চার্টে দেখানো হয়নি।`, style: 'note' }
+          ],
+          margin: [0,0,0,8]
+        }] : []),
+
+        { text: currentBengaliNarratives.chartExplanation || '—', style: 'para', alignment: 'justify', margin: [0,6,0,0] },
+
+        { text: 'বিশ্লেষণ', style: 'h2' },
+        { ol: pdfAnalysis, margin: [14,0,0,14], alignment: 'justify' },
+
+        keepTogether('উপসংহার', { text: currentBengaliNarratives.conclusion || '—', style: 'para' })
+      ],
+      styles: {
+        h1:  { fontSize: 20, bold: true, color: '#0d6efd', alignment: 'center', margin: [0,0,0,10] },
+        h2:  { fontSize: 13, bold: true, color: '#0d6efd', margin: [0,16,0,8] },
+        thRow: { bold: true, color: '#1f2937' },
+        para: { fontSize: 11, lineHeight: 1.45, color: '#111827' },
+        note: { italics: true, color: '#6b7280', margin: [0,4,0,12] }
+      },
+      defaultStyle: { fontSize: 11, lineHeight: 1.35 }
+    };
+
+    pdfMake.createPdf(dd).download('Smart_Farming_Report_Bengali.pdf');
+  } catch (err) {
+    alert(err.message || err);
+  }
+}
+
+
+
+
+
 
 
 // Attach event listeners after the page loads
@@ -1582,5 +2019,15 @@ async function downloadFormalPDF() {
 
     document.getElementById('downloadFormalPdfBtn')
       .addEventListener('click', downloadFormalPDF);
+
+
+    document.getElementById('btnBengaliReport')
+      ?.addEventListener('click', generateAndShowBengaliReport);
+
+    // Make sure you have a hidden button with this ID in the page header/footer area,
+    // or dynamically create one like your other flows.
+    document.getElementById('downloadBengaliPdfBtn')
+      ?.addEventListener('click', downloadBengaliPDF);
+
 
   });
