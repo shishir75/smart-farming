@@ -896,7 +896,7 @@ async function generateAndShowReport() {
     `;
 
     const html = `
-      <h1>Smart Farming Investment Feasibility Report</h1>
+      <h1>Agri-Tech Investements Feasibility Report</h1>
 
       <h2>Project Overview</h2>
       <p>${currentNarratives.overview || ''}</p>
@@ -1057,13 +1057,13 @@ async function downloadPDF() {
 
     // pdfmake doc (chart block is unbreakable so heading + chart stay together)
     const docDefinition = {
-      info: { title: 'Smart Farming Investment Feasibility Report', author: 'Smart Farming Calculator' },
+      info: { title: 'Agri-Tech Investment Feasibility Report', author: 'Smart Farming Calculator' },
       pageSize: 'A4',
       pageMargins: [48, 72, 48, 72],
       header: (currentPage) => ({
         margin: [48, 24, 48, 0],
         columns: [
-          { text: currentPage === 1 ? '' : 'Smart Farming Investment Feasibility Report', alignment: 'left',  fontSize: 9, color: '#356ac3' },
+          { text: currentPage === 1 ? '' : 'Agri-Tech Investment Feasibility Report', alignment: 'left',  fontSize: 9, color: '#356ac3' },
           { text: currentPage === 1 ? '' : new Date().toLocaleDateString(),          alignment: 'right', fontSize: 9, color: '#6b7280' }
         ]
       }),
@@ -1075,7 +1075,7 @@ async function downloadPDF() {
         ]
       }),
       content: [
-        { text: 'Smart Farming Investment Feasibility Report', style: 'h1' },
+        { text: 'Agri-Tech Investment Feasibility Report', style: 'h1' },
 
         // Project Overview
         keepTogether('Project Overview',
@@ -1347,7 +1347,7 @@ async function generateAndShowFormalReport() {
     `;
 
     const html = `
-      <h1>Smart Farming Investment – Formal Feasibility Report</h1>
+      <h1>Agri-Tech Investment – Formal Feasibility Report</h1>
 
       <h2>Project Overview</h2>
       <p>${currentFormalNarratives.overview || ''}</p>
@@ -1450,13 +1450,13 @@ async function downloadFormalPDF() {
       : [{ text: '—' }];
 
     const docDefinition = {
-      info: { title: 'Smart Farming Investment – Formal Feasibility Report', author: 'Smart Farming Calculator' },
+      info: { title: 'Agri-Tech Investment – Formal Feasibility Report', author: 'Agri-Tech Investment Feasibility Report' },
       pageSize: 'A4',
       pageMargins: [48, 72, 48, 72],
       header: (currentPage) => ({
         margin: [48, 24, 48, 0],
         columns: [
-          { text: currentPage === 1 ? '' : 'Smart Farming Investment – Formal Feasibility Report', alignment: 'left',  fontSize: 9, color: '#356ac3' },
+          { text: currentPage === 1 ? '' : 'Agri-Tech Investment – Formal Feasibility Report', alignment: 'left',  fontSize: 9, color: '#356ac3' },
           { text: currentPage === 1 ? '' : new Date().toLocaleDateString(),          alignment: 'right', fontSize: 9, color: '#6b7280' }
         ]
       }),
@@ -1468,7 +1468,7 @@ async function downloadFormalPDF() {
         ]
       }),
       content: [
-        { text: 'Smart Farming Investment – Formal Feasibility Report', style: 'h1' },
+        { text: 'Agri-Tech Investment – Formal Feasibility Report', style: 'h1' },
 
         keepTogether('Project Overview', { text: currentFormalNarratives.overview || '—', style: 'para' }),
 
@@ -1590,15 +1590,15 @@ async function fetchNarrativesBengali(M, chartPNG) {
       {
         "overview": "৩–৪ লাইনে সহজ সারাংশ—প্রকল্প কী, মোটামুটি ফল কী দেখা যাচ্ছে, এবং আজকের সিদ্ধান্ত এক লাইনে (করা উচিত/আরও যাচাই দরকার)।",
         "analysis": [
-          "ROI — ২–৩টি ছোট বাক্যে কী বোঝায় ও এই ডেটা থেকে কী অনুমান করা যায়।",
-          "Undiscounted Payback — ২–৩টি ছোট বাক্যে, কত সময়ে টাকা ওঠে, মাস/বছরের ইঙ্গিত দিন।",
-          "Discounted Payback — ২–৩টি ছোট বাক্যে, সময়ের মূল্য ধরা হলে ফল কী বদলায়।",
-          "NPV — ২–৩টি ছোট বাক্যে, মোট লাভ-ক্ষতি বর্তমান দামে কী বোঝাচ্ছে।",
-          "IRR — ২–৩টি ছোট বাক্যে, ডিসকাউন্ট রেটের সাথে তুলনা করে অর্থ কী।",
-          "BCR — ২–৩টি ছোট বাক্যে, প্রতি ১ টাকা খরচে আনুমানিক কত টাকা সুবিধা।"
+          "ROI — ৩–৪টি ছোট বাক্যে কী বোঝায় ও এই ডেটা থেকে কী অনুমান করা যায়।",
+          "Undiscounted Payback — ৩–৪টি ছোট বাক্যে, কত সময়ে টাকা ওঠে, মাস/বছরের ইঙ্গিত দিন।",
+          "Discounted Payback — ৩–৪টি ছোট বাক্যে, সময়ের মূল্য ধরা হলে ফল কী বদলায়।",
+          "NPV — ৩–৪টি ছোট বাক্যে, মোট লাভ-ক্ষতি বর্তমান দামে কী বোঝাচ্ছে।",
+          "IRR — ৩–৪টি ছোট বাক্যে, ডিসকাউন্ট রেটের সাথে তুলনা করে অর্থ কী।",
+          "BCR — ৩–৪টি ছোট বাক্যে, প্রতি ১ টাকা খরচে আনুমানিক কত টাকা সুবিধা।"
         ],
-        "chartExplanation": "২–৩টি বাক্যে চার্ট কী দেখাচ্ছে—বছরভিত্তিক সুবিধা/খরচ, ক্রমবর্ধমান নেট লাইনের দিক, এবং Year 0-এর প্রারম্ভিক খরচ কীভাবে ধরা হয়েছে।",
-        "conclusion": "২–৩টি বাক্যে স্পষ্ট পরামর্শ—করণীয়/সতর্কতা/কোন শর্তে এগোলে ভালো।"
+        "chartExplanation": "৩–৪টি বাক্যে চার্ট কী দেখাচ্ছে—বছরভিত্তিক সুবিধা/খরচ, ক্রমবর্ধমান নেট লাইনের দিক, এবং Year 0-এর প্রারম্ভিক খরচ কীভাবে ধরা হয়েছে।",
+        "conclusion": "৩–৪টি বাক্যে স্পষ্ট পরামর্শ—করণীয়/সতর্কতা/কোন শর্তে এগোলে ভালো।"
       }
 
       প্রকল্পের সূচক (ডেটা):
